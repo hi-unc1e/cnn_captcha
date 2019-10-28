@@ -103,6 +103,8 @@ class TrainModel(CNN):
         for i, img_name in enumerate(this_batch):
             label, image_array = self.gen_captcha_text_image(self.train_img_path, img_name)
             image_array = self.convert2gray(image_array)  # 灰度化图片
+            text_len = len(label)
+            # print(img_name)
             batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
             batch_y[i, :] = self.text2vec(label)  # 生成 oneHot
         return batch_x, batch_y
@@ -126,7 +128,7 @@ class TrainModel(CNN):
         # 在训练前校验所有文件格式
         print("开始校验所有图片后缀")
         for index, img_name in enumerate(self.train_images_list):
-            print("{} image pass".format(index), end='\r')
+            # print("{} image pass".format(index), end='/r')
             if not img_name.endswith(self.image_suffix):
                 raise TrainError('confirm images suffix：you request [.{}] file but get file [{}]'
                                  .format(self.image_suffix, img_name))
@@ -178,8 +180,10 @@ class TrainModel(CNN):
                 if step % 10 == 0:
                     # 基于训练集的测试
                     batch_x_test, batch_y_test = self.get_batch(i, size=self.train_batch_size)
-                    acc_char = sess.run(accuracy_char_count, feed_dict={self.X: batch_x_test, self.Y: batch_y_test, self.keep_prob: 1.})
-                    acc_image = sess.run(accuracy_image_count, feed_dict={self.X: batch_x_test, self.Y: batch_y_test, self.keep_prob: 1.})
+                    acc_char = sess.run(accuracy_char_count,
+                                        feed_dict={self.X: batch_x_test, self.Y: batch_y_test, self.keep_prob: 1.})
+                    acc_image = sess.run(accuracy_image_count,
+                                         feed_dict={self.X: batch_x_test, self.Y: batch_y_test, self.keep_prob: 1.})
                     print("第{}次训练 >>> ".format(step))
                     print("[训练集] 字符准确率为 {:.5f} 图片准确率为 {:.5f} >>> loss {:.10f}".format(acc_char, acc_image, cost_))
 
@@ -188,8 +192,10 @@ class TrainModel(CNN):
 
                     # 基于验证集的测试
                     batch_x_verify, batch_y_verify = self.get_verify_batch(size=self.test_batch_size)
-                    acc_char = sess.run(accuracy_char_count, feed_dict={self.X: batch_x_verify, self.Y: batch_y_verify, self.keep_prob: 1.})
-                    acc_image = sess.run(accuracy_image_count, feed_dict={self.X: batch_x_verify, self.Y: batch_y_verify, self.keep_prob: 1.})
+                    acc_char = sess.run(accuracy_char_count,
+                                        feed_dict={self.X: batch_x_verify, self.Y: batch_y_verify, self.keep_prob: 1.})
+                    acc_image = sess.run(accuracy_image_count,
+                                         feed_dict={self.X: batch_x_verify, self.Y: batch_y_verify, self.keep_prob: 1.})
                     print("[验证集] 字符准确率为 {:.5f} 图片准确率为 {:.5f} >>> loss {:.10f}".format(acc_char, acc_image, cost_))
 
                     # with open("loss_test.csv", "a+") as f:

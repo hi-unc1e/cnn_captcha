@@ -14,7 +14,7 @@ class TestError(Exception):
     pass
 
 
-class TestBatch(CNN):
+class TBatch(CNN):
     def __init__(self, img_path, char_set, model_save_dir, total):
         # 模型路径
         self.model_save_dir = model_save_dir
@@ -38,7 +38,7 @@ class TestBatch(CNN):
             raise TestError("图片转换为矩阵时出错，请检查图片格式")
 
         # 初始化变量
-        super(TestBatch, self).__init__(image_height, image_width, len(label), char_set, model_save_dir)
+        super(TBatch, self).__init__(image_height, image_width, len(label), char_set, model_save_dir)
         self.total = total
 
         # 相关信息打印
@@ -110,7 +110,7 @@ def main():
         char_set = sample_conf["char_set"]
 
     total = 100
-    tb = TestBatch(test_image_dir, char_set, model_save_dir, total)
+    tb = TBatch(test_image_dir, char_set, model_save_dir, total)
     tb.test_batch()
 
 
