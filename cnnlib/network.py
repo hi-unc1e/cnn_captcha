@@ -1,8 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import os
-from PIL import Image
-import random
+import cv2 as cv
 
 
 class CNN(object):
@@ -13,7 +11,7 @@ class CNN(object):
         self.max_captcha = max_captcha
         self.char_set = char_set
         self.char_set_len = len(char_set)
-        self.model_save_dir = model_save_dir  # 模型路径
+        self.model_save_dir = model_save_dir  # 模
         with tf.name_scope('parameters'):
             self.w_alpha = 0.01
             self.b_alpha = 0.1
@@ -36,6 +34,17 @@ class CNN(object):
             return gray
         else:
             return img
+
+    @staticmethod
+    def own_threshold(img_path, image_name):  # 自己设置阈值68           全局
+        image = img_path + image_name
+        img = cv.imread(image)
+        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)  # 首先变为灰度图
+        ret, binary = cv.threshold(gray, 69.0, 255,
+                                   cv.THRESH_BINARY)  # cv.THRESH_BINARY |cv.THRESH_OTSU 根据THRESH_OTSU阈值进行二值化
+        # 上面的0 为阈值 ，当cv.THRESH_OTSU 不设置则 0 生效
+        # ret 阈值 ， binary二值化图像
+        return binary
 
     def text2vec(self, text):
         """
@@ -66,14 +75,13 @@ class CNN(object):
         conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         conv1 = tf.nn.dropout(conv1, self.keep_prob)
 
-        # 卷积层2
+        # # 卷积层2
         wc2 = tf.get_variable(name='wc2', shape=[3, 3, 32, 64], dtype=tf.float32,
                               initializer=tf.contrib.layers.xavier_initializer())
         bc2 = tf.Variable(self.b_alpha * tf.random_normal([64]))
         conv2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv1, wc2, strides=[1, 1, 1, 1], padding='SAME'), bc2))
         conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         conv2 = tf.nn.dropout(conv2, self.keep_prob)
-
         # 卷积层3
         wc3 = tf.get_variable(name='wc3', shape=[3, 3, 64, 128], dtype=tf.float32,
                               initializer=tf.contrib.layers.xavier_initializer())

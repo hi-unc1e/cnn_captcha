@@ -31,7 +31,7 @@ def recognize_captcha(test_path, save_path, image_suffix):
     print("接口响应: {}".format(r.text))
     predict_text = json.loads(r.text)["value"]
     now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print("【{}】 耗时：{}ms 预测结果：{}".format(now_time, int((e-s)*1000), predict_text))
+    print("【{}】 耗时：{}ms 预测结果：{}".format(now_time, int((e - s) * 1000), predict_text))
 
     # 保存文件
     img_name = "{}_{}.{}".format(predict_text, str(time.time()).replace(".", ""), image_suffix)
@@ -46,13 +46,19 @@ def main():
         sample_conf = json.load(f)
 
     # 配置相关参数
-    test_path = "sample/test/3hyyf_1572010050195.png"  # 测试识别的图片路径
+    test_path = "sample/image_test/13mg5_1572254344511.png"  # 测试识别的图片路径
     save_path = sample_conf["local_image_dir"]  # 保存的地址
     image_suffix = sample_conf["image_suffix"]  # 文件后缀
-    recognize_captcha(test_path, save_path, image_suffix)
+    # recognize_captcha(test_path, save_path, image_suffix)
+
+    origin_dir = 'C:/Users/yanrong/project/javaProject/kaptch_java/image/'
+    img_list = os.listdir('C:/Users/yanrong/project/javaProject/kaptch_java/image')
+    total_count = len(img_list)
+    for index, img_name in enumerate(img_list):
+        file_path = os.path.join(origin_dir, img_name)
+        recognize_captcha(file_path, save_path, image_suffix)
+        os.remove(origin_dir+img_name)
 
 
 if __name__ == '__main__':
     main()
-    
-

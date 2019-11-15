@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image
 from cnnlib.network import CNN
 import json
+import os
 
 
 class Recognizer(CNN):
@@ -43,8 +44,13 @@ class Recognizer(CNN):
     def rec_image(self, img):
         # 读取图片
         img_array = np.array(img)
-        test_image = self.convert2gray(img_array)
+        temp = "cnnlib/temp_image/temp.png"
+        img.save(temp)
+        # 图片转灰度
+        # test_image = self.convert2gray(img_array)
+        test_image = self.own_threshold('cnnlib/temp_image/', 'temp.png')
         test_image = test_image.flatten() / 255
+        os.remove(temp)  # 删除临时文件
         # 使用指定的图和会话
         with self.g.as_default():
             with self.sess.as_default() as sess:

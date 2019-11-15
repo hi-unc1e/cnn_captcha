@@ -58,7 +58,8 @@ class TBatch(CNN):
         # 文件
         img_file = os.path.join(self.img_path, img_name)
         captcha_image = Image.open(img_file)
-        captcha_array = np.array(captcha_image)  # 向量化
+        captcha_array = self.own_threshold(self.img_path, img_name)  # 图像二值化
+        # captcha_array = np.array(captcha_image)  # 向量化
 
         return label, captcha_array
 
@@ -89,9 +90,9 @@ class TBatch(CNN):
                 else:
                     pass
             e = time.time()
-        rate = str(right/total * 100) + "%"
+        rate = str(right / total * 100) + "%"
         print("测试结果： {}/{}".format(right, total))
-        print("{}个样本识别耗时{}秒，准确率{}".format(total, e-s, rate))
+        print("{}个样本识别耗时{}秒，准确率{}".format(total, e - s, rate))
 
 
 def main():

@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 
 import tensorflow as tf
-import numpy as np
 import matplotlib.pyplot as plt
 import time
-from PIL import Image
 import random
-import os
+import cv2 as cv
+from PIL import Image
+import numpy as np
 from cnnlib.network import CNN
 
 
@@ -82,8 +83,21 @@ class TrainModel(CNN):
         # 文件
         img_file = os.path.join(img_path, img_name)
         captcha_image = Image.open(img_file)
+        # captcha_image = captcha_image.crop((0, 0, 200, 60))
         captcha_array = np.array(captcha_image)  # 向量化
         return label, captcha_array
+
+    # 图像二值化
+    @staticmethod
+    def own_threshold(img_path, image_name):  # 自己设置阈值68           全局
+        image = img_path + image_name
+        img = cv.imread(image)
+        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)  # 首先变为灰度图
+        ret, binary = cv.threshold(gray, 69.0, 255,
+                                   cv.THRESH_BINARY)  # cv.THRESH_BINARY |cv.THRESH_OTSU 根据THRESH_OTSU阈值进行二值化
+        # 上面的0 为阈值 ，当cv.THRESH_OTSU 不设置则 0 生效
+        # ret 阈值 ， binary二值化图像
+        return binary
 
     def get_batch(self, n, size=128):
         batch_x = np.zeros([size, self.image_height * self.image_width])  # 初始化
@@ -99,10 +113,11 @@ class TrainModel(CNN):
         e = (n + 1) * size
         this_batch = self.train_images_list[s:e]
         # print("{}:{}".format(s, e))
-
         for i, img_name in enumerate(this_batch):
             label, image_array = self.gen_captcha_text_image(self.train_img_path, img_name)
-            image_array = self.convert2gray(image_array)  # 灰度化图片
+            # 图像二值化，并降噪
+            image_array = self.own_threshold(self.train_img_path, img_name)  # 二值化图片
+            # image_array = self.convert2gray(image_array)  # 灰度化图片
             text_len = len(label)
             # print(img_name)
             batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
@@ -119,7 +134,9 @@ class TrainModel(CNN):
 
         for i, img_name in enumerate(verify_images):
             label, image_array = self.gen_captcha_text_image(self.verify_img_path, img_name)
-            image_array = self.convert2gray(image_array)  # 灰度化图片
+            # image_array = self.convert2gray(image_array)  # 灰度化图片
+            image_array = self.own_threshold(self.verify_img_path, img_name)  # 二值化图片
+            # print(img_name)
             batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
             batch_y[i, :] = self.text2vec(label)  # 生成 oneHot
         return batch_x, batch_y
@@ -140,7 +157,12 @@ class TrainModel(CNN):
         print(">>> End model test")
         # 计算概率 损失
         with tf.name_scope('cost'):
-            cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=y_predict, labels=self.Y))
+            # 定义均方差的损失函数
+            scala = 0.0002
+            reg = tf.contrib.layers.apply_regularization(tf.contrib.layers.l2_regularizer(scala),
+                                                         tf.trainable_variables())
+            cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=y_predict, labels=self.Y)) + reg
+
         # 梯度下降
         with tf.name_scope('train'):
             optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(cost)
@@ -163,12 +185,12 @@ class TrainModel(CNN):
             if os.path.exists(self.model_save_dir):
                 try:
                     saver.restore(sess, self.model_save_dir)
-                # 判断捕获model文件夹中没有模型文件的错误
+                    # 判断捕获model文件夹中没有模型文件的错误
                 except ValueError:
                     print("model文件夹为空，将创建新模型")
-            else:
-                pass
-            # 写入日志
+                else:
+                    pass
+                    # 写入日志
             tf.summary.FileWriter("logs/", sess.graph)
 
             step = 1
@@ -204,7 +226,7 @@ class TrainModel(CNN):
                     # 准确率达到99%后保存并停止
                     if acc_image > self.acc_stop:
                         saver.save(sess, self.model_save_dir)
-                        print("验证集准确率达到99%，保存模型成功")
+                        print("验证集准确率达到"+str(acc_image)+"%，保存模型成功")
                         break
                 # 每训练500轮就保存一次
                 if i % self.cycle_save == 0:
@@ -213,34 +235,36 @@ class TrainModel(CNN):
                 step += 1
             saver.save(sess, self.model_save_dir)
 
-    def recognize_captcha(self):
-        label, captcha_array = self.gen_captcha_text_image(self.train_img_path, random.choice(self.train_images_list))
 
-        f = plt.figure()
-        ax = f.add_subplot(111)
-        ax.text(0.1, 0.9, "origin:" + label, ha='center', va='center', transform=ax.transAxes)
-        plt.imshow(captcha_array)
-        # 预测图片
-        image = self.convert2gray(captcha_array)
-        image = image.flatten() / 255
+def recognize_captcha(self):
+    label, captcha_array = self.gen_captcha_text_image(self.train_img_path, random.choice(self.train_images_list))
 
-        y_predict = self.model()
+    f = plt.figure()
+    ax = f.add_subplot(111)
+    ax.text(0.1, 0.9, "origin:" + label, ha='center', va='center', transform=ax.transAxes)
+    plt.imshow(captcha_array)
+    # 预测图片
+    image = self.convert2gray(captcha_array)
 
-        saver = tf.train.Saver()
-        with tf.Session() as sess:
-            saver.restore(sess, self.model_save_dir)
-            predict = tf.argmax(tf.reshape(y_predict, [-1, self.max_captcha, self.char_set_len]), 2)
-            text_list = sess.run(predict, feed_dict={self.X: [image], self.keep_prob: 1.})
-            predict_text = text_list[0].tolist()
+    image = image.flatten() / 255
 
-        print("正确: {}  预测: {}".format(label, predict_text))
-        # 显示图片和预测结果
-        p_text = ""
-        for p in predict_text:
-            p_text += str(self.char_set[p])
-        print(p_text)
-        plt.text(20, 1, 'predict:{}'.format(p_text))
-        plt.show()
+    y_predict = self.model()
+
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+        saver.restore(sess, self.model_save_dir)
+        predict = tf.argmax(tf.reshape(y_predict, [-1, self.max_captcha, self.char_set_len]), 2)
+        text_list = sess.run(predict, feed_dict={self.X: [image], self.keep_prob: 1.})
+        predict_text = text_list[0].tolist()
+
+    print("正确: {}  预测: {}".format(label, predict_text))
+    # 显示图片和预测结果
+    p_text = ""
+    for p in predict_text:
+        p_text += str(self.char_set[p])
+    print(p_text)
+    plt.text(20, 1, 'predict:{}'.format(p_text))
+    plt.show()
 
 
 def main():

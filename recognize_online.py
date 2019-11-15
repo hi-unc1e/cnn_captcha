@@ -44,7 +44,7 @@ def recognize_captcha(remote_url, rec_times, save_path, image_suffix):
         print("接口响应: {}".format(r.text))
         predict_text = json.loads(r.text)["value"]
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print("【{}】 index:{} 耗时：{}ms 预测结果：{}".format(now_time, index, int((e-s)*1000), predict_text))
+        print("【{}】 index:{} 耗时：{}ms 预测结果：{}".format(now_time, index, int((e - s) * 1000), predict_text))
 
         # 保存文件
         img_name = "{}_{}.{}".format(predict_text, str(time.time()).replace(".", ""), image_suffix)
@@ -63,10 +63,10 @@ def main():
     remote_url = sample_conf["remote_url"]  # 网络验证码地址
     image_suffix = sample_conf["image_suffix"]  # 文件后缀
     rec_times = 1
-    recognize_captcha(remote_url, rec_times, save_path, image_suffix)
+    for i in range(10000):
+        print("-----------------------------:"+str(i))
+        recognize_captcha(remote_url, rec_times, save_path, image_suffix)
 
 
 if __name__ == '__main__':
     main()
-    
-

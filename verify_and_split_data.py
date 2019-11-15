@@ -39,6 +39,7 @@ def verify(origin_dir, real_width, real_height, image_suffix):
             continue
 
         # 过滤图片标签不标准的情况
+        print(img_name)
         prefix, posfix = img_name.split("_")
         if prefix == "" or posfix == "":
             bad_img.append((index, img_name, "图片标签异常"))
@@ -84,7 +85,6 @@ def split(origin_dir, train_dir, test_dir, bad_imgs):
         img_list.remove(img)
     total_count = len(img_list)
     print("共分配{}张图片到训练集和测试集，其中{}张为异常留在原始目录".format(total_count, len(bad_imgs)))
-
     # 创建文件夹
     if not os.path.exists(train_dir):
         os.mkdir(train_dir)
@@ -93,7 +93,7 @@ def split(origin_dir, train_dir, test_dir, bad_imgs):
         os.mkdir(test_dir)
 
     # 测试集
-    test_count = int(total_count*0.05)
+    test_count = int(total_count * 0.05)
     test_set = set()
     for i in range(test_count):
         while True:
