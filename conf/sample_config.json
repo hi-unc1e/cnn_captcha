@@ -10,15 +10,15 @@
   "model_save_dir": "model/",
   "image_width": 200,
   "image_height": 60,
-  "max_captcha": 5,
+  "max_captcha": 4,
   "image_suffix": "png",
   "char_set": "0123456789abcdefghijklmnopqrstuvwxyz",
   "use_labels_json_file": false,
   "remote_url": "https://delivery.dhl.com/captcha?type=image&12313123124142",
-  "cycle_stop": 100000,
+  "cycle_stop": 3000,
   "acc_stop": 0.99,
   "cycle_save": 500,
   "enable_gpu": 1,
-  "train_batch_size": 128,
+  "train_batch_size": 256,
   "test_batch_size": 100
 }

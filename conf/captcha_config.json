@@ -1,9 +1,10 @@
 {
-  "root_dir": "sample/origin/",
+  "root_dir": "sample/new/",
   "image_suffix": "png",
   "characters": "0123456789abcdefghijklmnopqrstuvwxyz",
-  "count": 1,
-  "char_count": 5,
+  "count": 100000,
+  "char_count": 4,
   "width": 200,
   "height": 60
+  
 }

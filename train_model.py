@@ -2,7 +2,11 @@
 import json
 import os
 
-import tensorflow as tf
+# import tensorflow as tf
+# 
+import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
+from tensorflow.keras import layers, regularizers, models
 import matplotlib.pyplot as plt
 import time
 import random
@@ -82,7 +86,11 @@ class TrainModel(CNN):
         label = img_name.split("_")[0]
         # 文件
         img_file = os.path.join(img_path, img_name)
-        captcha_image = Image.open(img_file)
+        try:
+            captcha_image = Image.open(img_file)
+        except:
+            print(f"err in open {img_file}")
+            return  False, False
         # captcha_image = captcha_image.crop((0, 0, 200, 60))
         captcha_array = np.array(captcha_image)  # 向量化
         return label, captcha_array
@@ -115,6 +123,8 @@ class TrainModel(CNN):
         # print("{}:{}".format(s, e))
         for i, img_name in enumerate(this_batch):
             label, image_array = self.gen_captcha_text_image(self.train_img_path, img_name)
+            if not label:
+                continue
             # 图像二值化，并降噪
             image_array = self.own_threshold(self.train_img_path, img_name)  # 二值化图片
             # image_array = self.convert2gray(image_array)  # 灰度化图片
@@ -159,9 +169,16 @@ class TrainModel(CNN):
         with tf.name_scope('cost'):
             # 定义均方差的损失函数
             scala = 0.0002
-            reg = tf.contrib.layers.apply_regularization(tf.contrib.layers.l2_regularizer(scala),
-                                                         tf.trainable_variables())
-            cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=y_predict, labels=self.Y)) + reg
+            scala = 0.0001
+            
+            reg = tf.keras.regularizers.L1L2(l1=0.01, l2=0.01)
+            # 计算正则化损失
+            regularization_loss = 0
+            for v in tf.trainable_variables():
+                regularization_loss += reg(v)
+
+            cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=y_predict, labels=self.Y)) + regularization_loss
+
 
         # 梯度下降
         with tf.name_scope('train'):
@@ -235,6 +252,76 @@ class TrainModel(CNN):
                 step += 1
             saver.save(sess, self.model_save_dir)
 
+
+    def train_cnn_V2(self):
+        """V2代码"""
+        model = self.model() #   # 使用 TensorFlow 2.0 的 Keras API 构建模型
+        print(">>> input batch predict shape: {}".format(model.shape))
+        print(">>> End model test")
+
+        scala = 0.0002
+        l2_regularizer = regularizers.l2(scala)
+
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
+        loss_ob
+        ect = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+
+        # 定义损失和准确率的度量
+        train_loss = tf.keras.metrics.Mean(name='train_loss')
+        train_char_accuracy = tf.keras.metrics.Mean(name='train_char_accuracy')
+        train_image_accuracy = tf.keras.metrics.Mean(name='train_image_accuracy')
+
+        # 定义训练步骤
+        @tf.function
+        def train_step(images, labels):
+            with tf.GradientTape() as tape:
+                predictions = model(images, training=True)
+                reg_loss = tf.add_n(model.losses)  # 获取模型中的正则化损失
+                loss = loss_object(labels, predictions) + reg_loss
+
+            gradients = tape.gradient(loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+            train_loss(loss)
+
+            # 计算准确率
+            predictions = tf.reshape(predictions, [-1, self.max_captcha, self.char_set_len])
+            max_idx_p = tf.argmax(predictions, 2)
+            max_idx_l = tf.argmax(tf.reshape(labels, [-1, self.max_captcha, self.char_set_len]), 2)
+            correct_pred = tf.equal(max_idx_p, max_idx_l)
+            accuracy_char_count = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+            accuracy_image_count = tf.reduce_mean(tf.reduce_min(tf.cast(correct_pred, tf.float32), axis=1))
+            train_char_accuracy(accuracy_char_count)
+            train_image_accuracy(accuracy_image_count)
+
+        # 训练循环
+        checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+        manager = tf.train.CheckpointManager(checkpoint, self.model_save_dir, max_to_keep=3)
+
+        step = 1
+        for i in range(self.cycle_stop):
+            batch_x, batch_y = self.get_batch(i, size=self.train_batch_size)
+            train_step(batch_x, batch_y)
+            if step % 10 == 0:
+                # 输出训练损失和准确率
+                print("第{}次训练 >>> ".format(step))
+                print("[训练集] 字符准确率为 {:.5f} 图片准确率为 {:.5f} >>> loss {:.10f}".format(
+                    train_char_accuracy.result(),
+                    train_image_accuracy.result(),
+                    train_loss.result()))
+
+            # 每训练500轮就保存一次
+            if i % self.cycle_save == 0:
+                manager.save()
+                print("定时保存模型成功")
+
+            # 准确率达到99%后保存并停止
+            if train_image_accuracy.result() > self.acc_stop:
+                manager.save()
+                print("验证集准确率达到 {:.5f}，保存模型成功".format(train_image_accuracy.result()))
+                break
+
+            step += 1
 
 def recognize_captcha(self):
     label, captcha_array = self.gen_captcha_text_image(self.train_img_path, random.choice(self.train_images_list))
