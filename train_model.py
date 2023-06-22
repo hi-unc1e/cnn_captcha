@@ -99,13 +99,19 @@ class TrainModel(CNN):
     @staticmethod
     def own_threshold(img_path, image_name):  # 自己设置阈值68           全局
         image = img_path + image_name
-        img = cv.imread(image)
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)  # 首先变为灰度图
-        ret, binary = cv.threshold(gray, 69.0, 255,
-                                   cv.THRESH_BINARY)  # cv.THRESH_BINARY |cv.THRESH_OTSU 根据THRESH_OTSU阈值进行二值化
-        # 上面的0 为阈值 ，当cv.THRESH_OTSU 不设置则 0 生效
-        # ret 阈值 ， binary二值化图像
-        return binary
+        try:
+            img = cv.imread(image)
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)  # 首先变为灰度图
+            ret, binary = cv.threshold(gray, 69.0, 255,
+                                    cv.THRESH_BINARY)  # cv.THRESH_BINARY |cv.THRESH_OTSU 根据THRESH_OTSU阈值进行二值化
+            # 上面的0 为阈值 ，当cv.THRESH_OTSU 不设置则 0 生效
+            # ret 阈值 ， binary二值化图像
+        except:
+            ret = False
+            binary = False
+    
+        finally:
+            return ret, binary
 
     def get_batch(self, n, size=128):
         batch_x = np.zeros([size, self.image_height * self.image_width])  # 初始化
@@ -122,16 +128,22 @@ class TrainModel(CNN):
         this_batch = self.train_images_list[s:e]
         # print("{}:{}".format(s, e))
         for i, img_name in enumerate(this_batch):
-            label, image_array = self.gen_captcha_text_image(self.train_img_path, img_name)
-            if not label:
+            try:
+                label, image_array = self.gen_captcha_text_image(self.train_img_path, img_name)
+                if not label:
+                    continue
+                # 图像二值化，并降噪
+                ok, image_array = self.own_threshold(self.train_img_path, img_name)  # 二值化图片
+                if not ok:
+                    continue
+                # image_array = self.convert2gray(image_array)  # 灰度化图片
+                text_len = len(label)
+                # print(img_name)
+                batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
+                batch_y[i, :] = self.text2vec(label)  # 生成 oneHot
+            except Exception as e:
+                print(f"error in {e}")
                 continue
-            # 图像二值化，并降噪
-            image_array = self.own_threshold(self.train_img_path, img_name)  # 二值化图片
-            # image_array = self.convert2gray(image_array)  # 灰度化图片
-            text_len = len(label)
-            # print(img_name)
-            batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
-            batch_y[i, :] = self.text2vec(label)  # 生成 oneHot
         return batch_x, batch_y
 
     def get_verify_batch(self, size=100):
@@ -143,12 +155,18 @@ class TrainModel(CNN):
             verify_images.append(random.choice(self.verify_images_list))
 
         for i, img_name in enumerate(verify_images):
-            label, image_array = self.gen_captcha_text_image(self.verify_img_path, img_name)
-            # image_array = self.convert2gray(image_array)  # 灰度化图片
-            image_array = self.own_threshold(self.verify_img_path, img_name)  # 二值化图片
-            # print(img_name)
-            batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
-            batch_y[i, :] = self.text2vec(label)  # 生成 oneHot
+            try:
+                label, image_array = self.gen_captcha_text_image(self.verify_img_path, img_name)
+                # image_array = self.convert2gray(image_array)  # 灰度化图片
+                ok, image_array = self.own_threshold(self.verify_img_path, img_name)  # 二值化图片
+                if not ok:
+                    continue
+                # print(img_name)
+                batch_x[i, :] = image_array.flatten() / 255  # flatten 转为一维
+                batch_y[i, :] = self.text2vec(label)  # 生成 oneHot
+            except Exception as e:
+                print(f"error in {e}")
+                continue
         return batch_x, batch_y
 
     def confirm_image_suffix(self):
@@ -263,8 +281,7 @@ class TrainModel(CNN):
         l2_regularizer = regularizers.l2(scala)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
-        loss_ob
-        ect = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
         # 定义损失和准确率的度量
         train_loss = tf.keras.metrics.Mean(name='train_loss')
